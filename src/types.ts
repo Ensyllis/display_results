@@ -7,6 +7,14 @@ export interface OpenAiResponseCategory {
     [category: string]: OpenAiResponseCategory; // e.g., "Excited about growth": { "phrase": score }
   }
   
+  export interface Note { 
+    _id: string;
+    text: string;
+    userId: string;
+    userName?: string;
+    timestamp: string;
+  }
+
   export interface DocumentData {
     _id: string;
     original_title: string;
@@ -20,7 +28,12 @@ export interface OpenAiResponseCategory {
       Factual_Score: [number, number];
     };
     error: string | null;
-    notes?: string;
+    notes: Note[]
+  }
+
+  export interface DocumentListItem {
+    _id: string;
+    original_title: string;
   }
   
   export interface PhraseToHighlight {

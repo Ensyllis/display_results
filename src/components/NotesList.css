@@ -1,0 +1,84 @@
+/* src/components/NotesList.css or add to DocumentViewer.css */
+
+.notes-list-container {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    border: 1px solid #dee2e6;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+  
+  .notes-list-container h4 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.15rem;
+    color: #343a40;
+  }
+  
+  .notes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .note-item {
+    background-color: #f8f9fa; /* Light background for each note */
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+  }
+  
+  .note-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .note-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .note-user {
+    font-weight: 600;
+    color: #007bff; /* User name in primary color */
+    font-size: 0.9rem;
+  }
+  
+  .note-timestamp {
+    font-size: 0.8rem;
+    color: #6c757d; /* Grey for timestamp */
+  }
+  
+  .note-text {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #495057;
+    white-space: pre-wrap; /* Preserve line breaks in notes */
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+  }
+  
+  .delete-note-button {
+    background-color: #dc3545; /* Red for delete */
+    color: white;
+    border: none;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+    float: right; /* Align to the right */
+  }
+  
+  .delete-note-button:hover {
+    background-color: #c82333;
+  }
+  
+  .delete-note-button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+  }

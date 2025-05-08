@@ -1,5 +1,8 @@
+// src/components/FilterControls.tsx
 import React from 'react';
 import { StatementType, AspectType } from '../types';
+// If you create a separate FilterControls.css, import it here:
+// import './FilterControls.css';
 
 interface FilterControlsProps {
   statementType: StatementType;
@@ -12,18 +15,53 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   statementType, setStatementType, aspectType, setAspectType
 }) => {
   return (
-    <div className="filter-controls">
-      <div>
-        <label>Statement Type: </label>
-        <button onClick={() => setStatementType("Sentiment")} disabled={statementType === "Sentiment"}>Sentiment</button>
-        <button onClick={() => setStatementType("Factual")} disabled={statementType === "Factual"}>Factual</button>
+    // Using a new root class to avoid conflicts if old '.filter-controls' styles exist elsewhere
+    <div className="filter-controls-enhanced">
+      <div className="filter-row">
+        <label htmlFor="statementTypeControl" className="filter-label">Statement Type:</label>
+        <div className="segmented-control" id="statementTypeControl">
+          <button
+            onClick={() => setStatementType("Sentiment")}
+            className={statementType === "Sentiment" ? 'active' : ''}
+            disabled={statementType === "Sentiment"} // Keeps it unclickable but visually active
+            aria-pressed={statementType === "Sentiment"}
+          >
+            Sentiment
+          </button>
+          <button
+            onClick={() => setStatementType("Factual")}
+            className={statementType === "Factual" ? 'active' : ''}
+            disabled={statementType === "Factual"}
+            aria-pressed={statementType === "Factual"}
+          >
+            Factual
+          </button>
+        </div>
       </div>
-      <div style={{marginTop: '10px'}}>
-        <label>Aspect: </label>
-        <button onClick={() => setAspectType("Margin")} disabled={aspectType === "Margin"}>Margin</button>
-        <button onClick={() => setAspectType("Growth")} disabled={aspectType === "Growth"}>Growth</button>
+
+      <div className="filter-row">
+        <label htmlFor="aspectTypeControl" className="filter-label">Aspect:</label>
+        <div className="segmented-control" id="aspectTypeControl">
+          <button
+            onClick={() => setAspectType("Margin")}
+            className={aspectType === "Margin" ? 'active' : ''}
+            disabled={aspectType === "Margin"}
+            aria-pressed={aspectType === "Margin"}
+          >
+            Margin
+          </button>
+          <button
+            onClick={() => setAspectType("Growth")}
+            className={aspectType === "Growth" ? 'active' : ''}
+            disabled={aspectType === "Growth"}
+            aria-pressed={aspectType === "Growth"}
+          >
+            Growth
+          </button>
+        </div>
       </div>
     </div>
   );
 };
+
 export default FilterControls;

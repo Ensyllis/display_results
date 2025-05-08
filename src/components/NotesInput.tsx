@@ -1,46 +1,49 @@
+// src/components/NotesInput.tsx
 import React, { useState } from 'react';
-import { updateDocumentNotes } from '../services/api';
+// Note: addDocumentNote and NewNotePayload will be passed as props or imported if this component handles the API call directly.
+// For this example, DocumentViewer will handle the API call.
 
 interface NotesInputProps {
-  documentId: string;
-  initialNotes: string;
-  setParentNotes: (notes: string) => void; // To update notes in DocumentViewer optimistically
+  onAddNote: (text: string) => void; // Simplified: text is enough, DocumentViewer adds userId etc.
+  isAdding: boolean; // To disable button while processing
 }
 
-const NotesInput: React.FC<NotesInputProps> = ({ documentId, initialNotes, setParentNotes }) => {
-  const [notes, setNotes] = useState(initialNotes);
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState('');
+const NotesInput: React.FC<NotesInputProps> = ({ onAddNote, isAdding }) => {
+  const [newNoteText, setNewNoteText] = useState('');
+  const [message, setMessage] = useState(''); // For user feedback
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setMessage('');
-    const success = await updateDocumentNotes(documentId, notes);
-    if (success) {
-      setParentNotes(notes); // Update parent state
-      setMessage('Notes saved successfully!');
-    } else {
-      setMessage('Failed to save notes.');
+  const handleSubmitNote = async () => {
+    if (!newNoteText.trim()) {
+      setMessage('Note cannot be empty.');
+      setTimeout(() => setMessage(''), 3000);
+      return;
     }
-    setIsSaving(false);
-    setTimeout(() => setMessage(''), 3000);
+    setMessage(''); // Clear previous messages
+    // onAddNote will handle the actual API call and success/failure
+    onAddNote(newNoteText);
+    // Clear input only if add is successful (or let parent handle it)
+    // For now, clear optimistically or based on parent logic
+    setNewNoteText('');
+    // setMessage('Note submitted!'); // Parent can provide more specific feedback
+    // setTimeout(() => setMessage(''), 3000);
   };
 
   return (
-    <div className="notes-input-container">
-      <h4>User Notes:</h4>
+    <div className="notes-input-container"> {/* Keep existing styling for the container */}
+      <h4>Add a New Note:</h4>
       <textarea
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        rows={5}
-        style={{ width: '95%', marginBottom: '10px' }}
-        placeholder="Add your notes here..."
+        value={newNoteText}
+        onChange={(e) => setNewNoteText(e.target.value)}
+        rows={4} // Slightly shorter for adding a new note
+        style={{ width: '100%', marginBottom: '10px', resize: 'vertical' }}
+        placeholder="Type your new note here..."
       />
-      <button onClick={handleSave} disabled={isSaving}>
-        {isSaving ? 'Saving...' : 'Save Notes'}
+      <button onClick={handleSubmitNote} disabled={isAdding || !newNoteText.trim()}>
+        {isAdding ? 'Adding Note...' : 'Add Note'}
       </button>
       {message && <p style={{fontSize: '0.9em', marginTop: '5px'}}>{message}</p>}
     </div>
   );
 };
+
 export default NotesInput;
