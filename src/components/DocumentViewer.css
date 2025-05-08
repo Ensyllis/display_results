@@ -1,0 +1,238 @@
+/* src/components/DocumentViewer.css */
+.document-viewer-layout {
+  display: flex;
+  height: 100vh;
+  font-family: sans-serif;
+  overflow: hidden; /* Prevent layout shifts from scrollbars appearing/disappearing */
+}
+
+
+.sidebar {
+  width: 300px;
+  min-width: 300px;
+  padding: 0rem; /* General padding for the sidebar box */
+  /* Remove padding-top here, as sticky children will define their own top offset
+     relative to this padding box's top edge. */
+  border-right: 1px solid #ccc;
+  background-color: #f9f9f9;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease;
+  overflow-y: auto; /* THIS IS THE SCROLL CONTAINER for sticky children */
+  overflow-x: hidden;
+  position: relative; /* Still useful if any non-sticky children were absolute */
+}
+
+.sidebar-toggle-button {
+  /* NOW STICKY! */
+  position: sticky;
+  top: 10px; /* Stick 10px from the top of the .sidebar scrollable area */
+  /* left: 10px; /* With sticky, horizontal positioning needs care.
+                     By default, it takes its normal flow horizontal space.
+                     If you want it left-aligned and sticky, ensure its container allows this.
+                     For a block-level element (which button can be), it might span width.
+                     Let's make it inline-block or give it a fixed width and use margin for alignment if needed,
+                     or wrap it in a div that's sticky.
+                     For simplicity, let's assume it's okay at its default sticky horizontal position
+                     or we rely on its own width/margins.
+                  */
+  align-self: flex-start; /* If .sidebar is still display:flex, this can help align it left */
+  margin-left: 10px; /* If align-self works, or if you want to push it from left */
+  margin-bottom: 10px; /* Space below the button before the next sticky element */
+  z-index: 20; /* Highest */
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  display: flex; /* Keep for internal text alignment */
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.2s ease, transform 0.3s ease;
+}
+
+.sidebar-toggle-button:hover {
+  background-color: #0056b3;
+}
+
+.sidebar-toggle-button:hover {
+  background-color: #0056b3;
+}
+
+.sidebar-content {
+  flex-grow: 1;
+  opacity: 1;
+  transition: opacity 0.3s ease 0.1s;
+  /*
+    If the toggle button is absolute (top: 10px, height: 30px), it occupies up to 40px from top.
+    So, .sidebar-content needs to start below that.
+  */
+  margin-top: 40px; /* Push content below the absolute button */
+  /* padding-top: 10px; /* This was for spacing. With margin-top, this might not be needed or can be adjusted.
+                         If sticky-vector-plot-container is first child and has top:0, it will stick
+                         to the top of this margin-adjusted .sidebar-content block.
+                       */
+}
+
+/* ---- ADD STICKY VECTOR PLOT STYLES HERE (or ensure they exist) ---- */
+/* Assuming you have a wrapper for the plot like we discussed: */
+.sticky-vector-plot-container {
+  position: sticky;
+  top: 0; /* This will stick to the top of .sidebar-content's scrollable area,
+             which starts after .sidebar-content's margin-top.
+           */
+  background-color: #f9f9f9; /* Match sidebar to hide content scrolling under */
+  z-index: 10; /* Below button, above list */
+  padding: 10px 0; /* Add some vertical padding around the plot within its sticky container */
+                  /* Or just padding-bottom if the h4 has margin-top */
+}
+
+.sticky-vector-plot-container h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem; /* Space between title and plot */
+  padding-left: 10px; /* Align with list items if they also have horizontal padding */
+  padding-right: 10px;
+}
+/* ---- END STICKY VECTOR PLOT STYLES ---- */
+
+
+/* Styles when sidebar is collapsed */
+.document-viewer-layout.sidebar-collapsed .sidebar {
+  width: 50px; 
+  min-width: 50px;
+  padding-left: 0; 
+  padding-right: 0;
+  /* padding-top: 55px; /* Keep this consistent if button needs it */
+  /* If button is absolute top:10px, the sidebar's overall padding-top (1rem) should be fine */
+  /* Let's ensure button is still visible. The overall padding-top: 1rem on .sidebar should be enough. */
+  /* padding-top: 1rem; /* Keep this */
+  border-right: 1px solid #ccc; 
+}
+
+.document-viewer-layout.sidebar-collapsed .sidebar .sidebar-toggle-button {
+  /* Stays visible due to absolute positioning and z-index */
+}
+
+.document-viewer-layout.sidebar-collapsed .sidebar .sidebar-content {
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden; 
+  margin-top: 40px; /* Keep consistent margin */
+}
+
+/* When sidebar is open (default, but explicit for clarity) */
+.document-viewer-layout.sidebar-open .main-content {
+  /* margin-left: 300px; /* If sidebar had position:fixed/absolute */
+  /* Since it's flex, it should adjust automatically. */
+  /* No specific margin change needed here with the current flex setup. */
+}
+/* When sidebar is collapsed, main content takes full width */
+.document-viewer-layout.sidebar-collapsed .main-content {
+  /* margin-left: 0; /* If sidebar had position:fixed/absolute */
+}
+
+.main-content {
+  flex-grow: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  background-color: #fff;
+  transition: margin-left 0.3s ease;
+}
+
+.abstract-display {
+  line-height: 1.6;
+  white-space: pre-wrap; 
+  margin-top: 1rem;
+  padding: 10px;
+  border: 1px solid #eee;
+  background-color: #fff; /* Changed from #f0f0f0 to #fff as per your provided css block */
+}
+
+.filter-controls {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    background-color: #f0f0f0;
+}
+.filter-controls label {
+    margin-right: 10px;
+}
+.filter-controls select, .filter-controls button { /* Assuming switches might be buttons/selects for simplicity now */
+    margin-right: 15px;
+    padding: 5px;
+}
+
+.notes-and-extras-sidebar {
+    width: 200px; /* Adjust as needed */
+    padding: 1rem;
+    border-left: 1px solid #ccc;
+    background-color: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+}
+.unfound-phrases-container {
+    margin-top: 1rem;
+    padding: 0.5rem;
+    border: 1px dashed #ff8787; /* Worried color for emphasis */
+    font-size: 0.9em;
+    background-color: #fff5f5; /* Worried pale color */
+}
+.unfound-phrases-container h4 {
+    margin-top: 0;
+    color: #e03131;
+}
+.not-available-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+.not-available-container img {
+  max-width: 150px;
+  margin-bottom: 1rem;
+}
+
+/* Vector plot placeholder */
+.vector-plot-container { /* This is the actual plot, not its sticky wrapper */
+  width: 100%; 
+  max-width: 250px; 
+  height: 200px; 
+  border: 1px solid #ccc;
+  margin: 0 auto; /* Center it within .sticky-vector-plot-container */
+                  /* Removed 1rem top/bottom margin, as .sticky-vector-plot-container handles spacing */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e9e9e9;
+  position: relative;
+}
+
+.vector-plot-axis {
+  position: absolute;
+  background-color: #aaa;
+}
+.vector-plot-axis.x-axis {
+  width: 100%;
+  height: 1px;
+  top: 50%;
+  left: 0;
+}
+.vector-plot-axis.y-axis {
+  width: 1px;
+  height: 100%;
+  left: 50%;
+  top: 0;
+}
+.vector-plot-point {
+  width: 8px;
+  height: 8px;
+  background-color: blue;
+  border-radius: 50%;
+  position: absolute;
+  transform: translate(-50%, -50%); /* Center the point */
+}
