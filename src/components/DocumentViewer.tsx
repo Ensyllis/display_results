@@ -1,7 +1,8 @@
-// src/components/DocumentViewer.tsx
+// Path: display_results/src/components/DocumentViewer.tsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchDocumentList, fetchDocument, addDocumentNote, deleteDocumentNote, NewNotePayload } from '../services/api';
-import { DocumentData, PhraseToHighlight, DocumentListItem, StatementType, AspectType, OpenAiResponseCategory, Note } from '../types';
+// Remove StatementType, AspectType from types import if no longer used directly
+import { DocumentData, PhraseToHighlight, DocumentListItem, OpenAiResponseCategory, Note, OpenAiResponseStatements } from '../types';
 import VectorPlot from './VectorPlot';
 import AbstractDisplay from './AbstractDisplay';
 import FilterControls from './FilterControls';
@@ -10,7 +11,7 @@ import NotesInput from './NotesInput';
 import './DocumentViewer.css';
 import './NotesList.css';
 
-// Basic Loading Modal Component
+// Basic Loading Modal Component (assuming it's unchanged)
 const LoadingModal: React.FC = () => (
   <div style={{
     position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
@@ -28,14 +29,15 @@ const DocumentViewer: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
 
-  const [documentNotes, setDocumentNotes] = useState<Note[]>([]); // NEW state for array of notes
+  const [documentNotes, setDocumentNotes] = useState<Note[]>([]);
   const [isAddingNote, setIsAddingNote] = useState<boolean>(false);
 
   const MOCK_CURRENT_USER_ID = "user123";
   const MOCK_CURRENT_USER_NAME  = "Current User";
 
-  const [statementType, setStatementType] = useState<StatementType>("Sentiment");
-  const [aspectType, setAspectType] = useState<AspectType>("Growth");
+  // New state for sliders, default to 50 for a balanced initial view
+  const [sentimentFactualFocus, setSentimentFactualFocus] = useState<number>(50); // 0: Factual, 100: Sentiment
+  const [marginGrowthFocus, setMarginGrowthFocus] = useState<number>(50);     // 0: Margin, 100: Growth
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -62,20 +64,19 @@ const DocumentViewer: React.FC = () => {
   useEffect(() => {
     if (!selectedDocumentId) {
       setSelectedDocument(null);
-      setDocumentNotes([]); // Clear notes when no document is selected
-      if (documentList.length === 0 && !isLoading) setIsLoading(false); // from previous logic
+      setDocumentNotes([]);
+      if (documentList.length === 0 && !isLoading) setIsLoading(false);
       return;
     }
-
 
     const loadDocumentDetails = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const doc = await fetchDocument(selectedDocumentId); // fetchDocument now ensures notes is an array
+        const doc = await fetchDocument(selectedDocumentId);
         if (doc) {
           setSelectedDocument(doc);
-          setDocumentNotes(doc.notes || []); // doc.notes should be an array from api.ts modification
+          setDocumentNotes(doc.notes || []);
         } else {
           setError(`Document with ID ${selectedDocumentId} not found or failed to load.`);
           setSelectedDocument(null);
@@ -91,7 +92,7 @@ const DocumentViewer: React.FC = () => {
       }
     };
     loadDocumentDetails();
-  }, [selectedDocumentId]); // removed documentList.length
+  }, [selectedDocumentId]);
 
   const handleDocumentSelect = (id: string) => {
     if (id !== selectedDocumentId) {
@@ -108,57 +109,95 @@ const DocumentViewer: React.FC = () => {
       return [];
     }
     const { openai_response } = selectedDocument;
-    const statementKey = statementType === "Sentiment" ? "Sentiment Statements" : "Factual Statements";
-    const statementsForType = openai_response[statementKey];
-    if (!statementsForType) return [];
     const allPhrases: PhraseToHighlight[] = [];
-    for (const categoryKey in statementsForType) {
-      if (aspectType && !categoryKey.toLowerCase().includes(aspectType.toLowerCase())) {
-        continue;
-      }
-      const categoryPhrases: OpenAiResponseCategory = statementsForType[categoryKey];
-      for (const phraseText in categoryPhrases) {
-        const score = categoryPhrases[phraseText];
-        let isWorried = false;
-        if (statementType === "Sentiment") {
-          if (score < 0) isWorried = true;
+    const minOpacityThreshold = 0.05;
+
+    // Corrected signature for processStatements:
+    // It accepts a group of statements (like "Sentiment Statements" or "Factual Statements")
+    // which is of type OpenAiResponseStatements.
+    const processStatements = (
+      statementGroup: OpenAiResponseStatements | undefined, // <<<< CORRECTED TYPE HERE
+      isSentimentGroup: boolean
+    ) => {
+      if (!statementGroup) return;
+
+      // Now, 'statementGroup' is an object where keys are category names (e.g., "Excited about growth")
+      // and values are OpenAiResponseCategory objects.
+      for (const categoryKey in statementGroup) {
+        // 'categoryPhrases' will correctly be of type OpenAiResponseCategory
+        const categoryPhrases: OpenAiResponseCategory = statementGroup[categoryKey]; // <<<< THIS IS NOW CORRECT
+
+        for (const phraseText in categoryPhrases) {
+          const score = categoryPhrases[phraseText];
+
+          let opacityStatement: number;
+          if (isSentimentGroup) {
+            opacityStatement = sentimentFactualFocus / 100;
+          } else {
+            opacityStatement = (100 - sentimentFactualFocus) / 100;
+          }
+
           const lowerCategoryKey = categoryKey.toLowerCase();
-          if (lowerCategoryKey.includes("concern") || lowerCategoryKey.includes("risk") || lowerCategoryKey.includes("worried") || lowerCategoryKey.includes("negative")) {
-            isWorried = true;
+          const isGrowthCategory = lowerCategoryKey.includes("growth");
+          const isMarginCategory = lowerCategoryKey.includes("margin");
+          let opacityAspect = 1.0;
+
+          if (isGrowthCategory && !isMarginCategory) {
+            opacityAspect = marginGrowthFocus / 100;
+          } else if (isMarginCategory && !isGrowthCategory) {
+            opacityAspect = (100 - marginGrowthFocus) / 100;
           }
-          if (lowerCategoryKey.includes("positive") || lowerCategoryKey.includes("excited") || lowerCategoryKey.includes("opportunity")) {
-            isWorried = false;
+
+          const finalOpacity = opacityStatement * opacityAspect;
+
+          if (finalOpacity < minOpacityThreshold) {
+            continue;
           }
+
+          let isWorried = false;
+          if (isSentimentGroup) {
+            if (score < 0) isWorried = true;
+            if (lowerCategoryKey.includes("concern") || lowerCategoryKey.includes("risk") || lowerCategoryKey.includes("worried") || lowerCategoryKey.includes("negative")) {
+              isWorried = true;
+            }
+            if (lowerCategoryKey.includes("positive") || lowerCategoryKey.includes("excited") || lowerCategoryKey.includes("opportunity")) {
+              isWorried = false;
+            }
+          }
+          
+          allPhrases.push({
+            text: phraseText,
+            score: score,
+            isWorried: isWorried,
+            categoryKey: categoryKey,
+            opacity: finalOpacity,
+          });
         }
-        allPhrases.push({
-          text: phraseText,
-          score: score,
-          isWorried: isWorried,
-          categoryKey: categoryKey,
-        });
       }
-    }
+    };
+
+    processStatements(openai_response["Sentiment Statements"], true);
+    processStatements(openai_response["Factual Statements"], false);
+    
     return allPhrases;
-  }, [selectedDocument, statementType, aspectType]);
+  }, [selectedDocument, sentimentFactualFocus, marginGrowthFocus]);
 
   const handleAddNote = useCallback(async (text: string) => {
     if (!selectedDocumentId) return;
     setIsAddingNote(true);
     const newNotePayload: NewNotePayload = {
       text,
-      userId: MOCK_CURRENT_USER_ID, // Replace with actual user ID from auth
-      userName: MOCK_CURRENT_USER_NAME, // Replace with actual user name
+      userId: MOCK_CURRENT_USER_ID,
+      userName: MOCK_CURRENT_USER_NAME,
     };
     const addedNote = await addDocumentNote(selectedDocumentId, newNotePayload);
     if (addedNote) {
       setDocumentNotes(prevNotes => [...prevNotes, addedNote]);
-      // Also update the selectedDocument state if it holds the notes directly
       setSelectedDocument(prevDoc => {
         if (!prevDoc) return null;
         return { ...prevDoc, notes: [...(prevDoc.notes || []), addedNote] };
       });
     } else {
-      // You could set an error message to display to the user
       alert("Failed to add note. Please try again.");
     }
     setIsAddingNote(false);
@@ -166,9 +205,6 @@ const DocumentViewer: React.FC = () => {
 
   const handleDeleteNote = useCallback(async (noteId: string) => {
     if (!selectedDocumentId) return;
-    // Optional: Add a confirmation dialog
-    // if (!window.confirm("Are you sure you want to delete this note?")) return;
-
     const success = await deleteDocumentNote(selectedDocumentId, noteId);
     if (success) {
       setDocumentNotes(prevNotes => prevNotes.filter(note => note._id !== noteId));
@@ -183,7 +219,6 @@ const DocumentViewer: React.FC = () => {
 
   return (
     <div className={`document-viewer-layout ${isSidebarOpen ? 'sidebar-open' : 'sidebar-collapsed'}`}>
-      {/* ... (isLoading modal, sidebar div with its content: toggle, plot, doc list) ... */}
       <div className="sidebar">
         <div className="sidebar-content">
           <button onClick={toggleSidebar} className="sidebar-toggle-button" title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}>
@@ -198,7 +233,7 @@ const DocumentViewer: React.FC = () => {
               />
             </div>
           )}
-          <h3 style={{paddingLeft: '0', paddingRight: '0', marginTop: '0'}}>Documents</h3> {/* Adjusted padding if sidebar-content has it */}
+          <h3 style={{paddingLeft: '0', paddingRight: '0', marginTop: '0'}}>Documents</h3>
           {documentList.length === 0 && !isLoading && !error && <p>No documents available.</p>}
           {error && !isLoading && <p style={{ color: 'red' }}>{error}</p>}
           <ul className="document-list">
@@ -207,16 +242,9 @@ const DocumentViewer: React.FC = () => {
                 key={doc._id}
                 onClick={() => handleDocumentSelect(doc._id)}
                 style={{
-                  cursor: 'pointer',
                   fontWeight: selectedDocumentId === doc._id ? 'bold' : 'normal',
-                  // Using classes for these would be cleaner eventually
-                  // padding: '8px 10px',
-                  // backgroundColor: selectedDocumentId === doc._id ? '#e0e0e0' : 'transparent',
-                  // whiteSpace: 'nowrap',
-                  // overflow: 'hidden',
-                  // textOverflow: 'ellipsis',
-                  // borderBottom: '1px solid #eee'
                 }}
+                className={selectedDocumentId === doc._id ? 'active-doc-item' : ''} // Use class for active
                 title={doc.original_title}
               >
                 {doc.original_title}
@@ -227,15 +255,16 @@ const DocumentViewer: React.FC = () => {
       </div>
 
       <div className="main-content">
-        {selectedDocument ? (
+        {isLoading && <LoadingModal />}
+        {!isLoading && selectedDocument ? (
           <>
             <h2>{selectedDocument.original_title}</h2>
             <div className="filter-controls-main-container">
               <FilterControls
-                  statementType={statementType}
-                  setStatementType={setStatementType}
-                  aspectType={aspectType}
-                  setAspectType={setAspectType}
+                  sentimentFactualFocus={sentimentFactualFocus}
+                  setSentimentFactualFocus={setSentimentFactualFocus}
+                  marginGrowthFocus={marginGrowthFocus}
+                  setMarginGrowthFocus={setMarginGrowthFocus}
               />
             </div>
             <h3>Abstract</h3>
@@ -244,7 +273,6 @@ const DocumentViewer: React.FC = () => {
               phrasesToHighlight={phrasesToHighlight}
             />
 
-            {/* Notes Section - Input at top, List at bottom as requested */}
             <div className="notes-main-section" style={{ marginTop: '2rem' }}>
               <NotesInput
                 onAddNote={handleAddNote}
@@ -252,7 +280,7 @@ const DocumentViewer: React.FC = () => {
               />
               <NotesList
                 notes={documentNotes}
-                currentUserId={MOCK_CURRENT_USER_ID} // Pass mock or real user ID
+                currentUserId={MOCK_CURRENT_USER_ID}
                 onDeleteNote={handleDeleteNote}
               />
             </div>

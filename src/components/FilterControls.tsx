@@ -1,64 +1,56 @@
-// src/components/FilterControls.tsx
+// Path: display_results/src/components/FilterControls.tsx
 import React from 'react';
-import { StatementType, AspectType } from '../types';
-// If you create a separate FilterControls.css, import it here:
-// import './FilterControls.css';
+// No need for StatementType, AspectType from '../types' anymore for props
 
 interface FilterControlsProps {
-  statementType: StatementType;
-  setStatementType: (type: StatementType) => void;
-  aspectType: AspectType;
-  setAspectType: (type: AspectType) => void;
+  sentimentFactualFocus: number; // 0 (Factual) to 100 (Sentiment)
+  setSentimentFactualFocus: (value: number) => void;
+  marginGrowthFocus: number; // 0 (Margin) to 100 (Growth)
+  setMarginGrowthFocus: (value: number) => void;
 }
 
 const FilterControls: React.FC<FilterControlsProps> = ({
-  statementType, setStatementType, aspectType, setAspectType
+  sentimentFactualFocus, setSentimentFactualFocus,
+  marginGrowthFocus, setMarginGrowthFocus
 }) => {
   return (
-    // Using a new root class to avoid conflicts if old '.filter-controls' styles exist elsewhere
     <div className="filter-controls-enhanced">
       <div className="filter-row">
-        <label htmlFor="statementTypeControl" className="filter-label">Statement Type:</label>
-        <div className="segmented-control" id="statementTypeControl">
-          <button
-            onClick={() => setStatementType("Sentiment")}
-            className={statementType === "Sentiment" ? 'active' : ''}
-            disabled={statementType === "Sentiment"} // Keeps it unclickable but visually active
-            aria-pressed={statementType === "Sentiment"}
-          >
-            Sentiment
-          </button>
-          <button
-            onClick={() => setStatementType("Factual")}
-            className={statementType === "Factual" ? 'active' : ''}
-            disabled={statementType === "Factual"}
-            aria-pressed={statementType === "Factual"}
-          >
-            Factual
-          </button>
-        </div>
+        <label htmlFor="sentimentFactualSlider" className="filter-label" style={{flexBasis: 'auto', marginRight: '10px'}}>
+          Factual ({100 - sentimentFactualFocus}%)
+        </label>
+        <input
+          type="range"
+          id="sentimentFactualSlider"
+          min="0"
+          max="100"
+          value={sentimentFactualFocus}
+          onChange={(e) => setSentimentFactualFocus(Number(e.target.value))}
+          style={{ flexGrow: 1, margin: '0 10px' }}
+          aria-label="Statement Type Focus: Left for Factual, Right for Sentiment"
+        />
+        <span className="filter-label" style={{flexBasis: 'auto', marginLeft: '0px'}}>
+          Sentiment ({sentimentFactualFocus}%)
+        </span>
       </div>
 
-      <div className="filter-row">
-        <label htmlFor="aspectTypeControl" className="filter-label">Aspect:</label>
-        <div className="segmented-control" id="aspectTypeControl">
-          <button
-            onClick={() => setAspectType("Margin")}
-            className={aspectType === "Margin" ? 'active' : ''}
-            disabled={aspectType === "Margin"}
-            aria-pressed={aspectType === "Margin"}
-          >
-            Margin
-          </button>
-          <button
-            onClick={() => setAspectType("Growth")}
-            className={aspectType === "Growth" ? 'active' : ''}
-            disabled={aspectType === "Growth"}
-            aria-pressed={aspectType === "Growth"}
-          >
-            Growth
-          </button>
-        </div>
+      <div className="filter-row" style={{marginTop: '1rem'}}>
+        <label htmlFor="marginGrowthSlider" className="filter-label" style={{flexBasis: 'auto', marginRight: '10px'}}>
+          Margin ({100 - marginGrowthFocus}%)
+        </label>
+        <input
+          type="range"
+          id="marginGrowthSlider"
+          min="0"
+          max="100"
+          value={marginGrowthFocus}
+          onChange={(e) => setMarginGrowthFocus(Number(e.target.value))}
+          style={{ flexGrow: 1, margin: '0 10px' }}
+          aria-label="Aspect Focus: Left for Margin, Right for Growth"
+        />
+        <span className="filter-label" style={{flexBasis: 'auto', marginLeft: '0px'}}>
+          Growth ({marginGrowthFocus}%)
+        </span>
       </div>
     </div>
   );

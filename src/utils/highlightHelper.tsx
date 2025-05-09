@@ -1,19 +1,5 @@
-// src/utils/highlightHelper.tsx
-// CRITICAL:
-// 1. This file MUST have a .tsx extension (e.g., highlightHelper.tsx).
-// 2. Your tsconfig.json MUST have the "jsx" compiler option set, e.g., "jsx": "react-jsx".
-//    Example tsconfig.json compilerOptions:
-//    {
-//      "compilerOptions": {
-//        "jsx": "react-jsx", // Or "react" for older setups
-//        // ... other options
-//      }
-//    }
-// 3. You MUST restart your development server after ensuring the above.
-//    If problems persist, try deleting node_modules, package-lock.json/yarn.lock,
-//    re-running npm install / yarn install, and then restarting the server.
-
-import React from 'react'; // Necessary for JSX transformation and recognition
+// Path: display_results/src/utils/highlightHelper.tsx
+import React from 'react';
 import { PhraseToHighlight } from '../types';
 
 export const excitedColors: { [key: number]: string } = {
@@ -24,7 +10,10 @@ export const worriedColors: { [key: number]: string } = {
 };
 
 export function getHighlightColor(score: number, isWorried: boolean): string {
-  const absScore = Math.max(1, Math.min(5, Math.round(Math.abs(score))));
+  // Ensure score is treated as absolute for color intensity, and clamped.
+  // Original score could be e.g. -5 to 5. abs() makes it 0 to 5.
+  // Math.round() + Math.max(1, ..) ensures it's an integer from 1 to 5.
+  const absScore = Math.max(1, Math.min(5, Math.round(Math.abs(score)))); 
   if (isWorried) {
     return worriedColors[absScore] || worriedColors[1];
   }
@@ -36,44 +25,102 @@ export const highlightText = (text: string, phrasesToHighlight: PhraseToHighligh
     return [text];
   }
 
+  const normalizeSearchableString = (str: string): string => {
+    return str
+      .toLowerCase()
+      .replace(/\u00A0/g, ' ')
+      .replace(/â\x80\x93/g, '-')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   let remainingText = text;
-  const parts: (string | React.JSX.Element)[] = []; // JSX.Element type requires React in scope and TSX processing
+  const parts: (string | React.JSX.Element)[] = [];
   let keyCounter = 0;
-  const sortedPhrases = [...phrasesToHighlight];
+  // Sort by length descending to match longer phrases first, if that's desired,
+  // though current logic finds the *earliest* best match.
+  // Sorting might not be strictly necessary with the current "bestMatch" logic that prioritizes earlier start index.
+  const sortedPhrases = [...phrasesToHighlight]; 
 
   while (remainingText.length > 0) {
     let foundThisIteration = false;
+    let bestMatch: {
+        actualStartIndex: number;
+        phraseInfo: PhraseToHighlight;
+        originalTextToHighlight: string;
+    } | null = null;
+
     for (let i = 0; i < sortedPhrases.length; i++) {
       const phraseInfo = sortedPhrases[i];
-      const startIndex = remainingText.toLowerCase().indexOf(phraseInfo.text.toLowerCase());
+      // Skip if opacity is effectively zero (already filtered in DocumentViewer, but as a safeguard)
+      if (phraseInfo.opacity < 0.01) continue;
 
-      if (startIndex !== -1) {
-        const before = remainingText.substring(0, startIndex);
-        const originalPhraseText = remainingText.substring(startIndex, startIndex + phraseInfo.text.length);
 
-        if (before) parts.push(before);
+      const normalizedSearchablePhraseText = normalizeSearchableString(phraseInfo.text);
+      if (normalizedSearchablePhraseText.length === 0) continue;
 
-        // The following is JSX. If TypeScript reports "span is not defined" or "key is not defined",
-        // it means this file is NOT being processed as a TSX file correctly.
-        // Ensure file extension is .tsx and tsconfig.json has "jsx" option set.
-        parts.push(
-          <span // This is a JSX element
-            key={`highlight-${phraseInfo.text}-${keyCounter++}`} // 'key' is a special React prop
-            style={{ // 'style' is a special React prop expecting an object
-              backgroundColor: getHighlightColor(phraseInfo.score, phraseInfo.isWorried),
-              padding: '0.1em 0.2em',
-              borderRadius: '0.2em',
-            }}
-            title={`Category: ${phraseInfo.categoryKey}\nScore: ${phraseInfo.score}`} // 'title' is a standard HTML attribute
-          >
-            {originalPhraseText}
-          </span>
-        );
+      let actualStartIndex = -1;
+      const originalPhraseLength = phraseInfo.text.length; // Use original phrase length
 
-        remainingText = remainingText.substring(startIndex + phraseInfo.text.length);
-        foundThisIteration = true;
-        break;
+      // Find the phrase in the remainingText using a case-insensitive search for the first character,
+      // then comparing the normalized substring.
+      // This is a revised loop to find the true start of the non-normalized phrase
+      // by normalizing substrings of remainingText for comparison.
+      let searchFromIndex = 0;
+      while(searchFromIndex < remainingText.length) {
+          // Attempt to find the start of the phrase (case-insensitive for the first char of phraseInfo.text for robustness)
+          const potentialStartIndex = remainingText.toLowerCase().indexOf(phraseInfo.text.charAt(0).toLowerCase(), searchFromIndex);
+          
+          if (potentialStartIndex === -1) break; // First char not found, phrase cannot be in remainingText
+
+          // Extract a substring of original remainingText that has the same length as the original phrase.text
+          const subAhead = remainingText.substring(potentialStartIndex, potentialStartIndex + originalPhraseLength);
+          
+          // Normalize this extracted substring and compare with the normalized phrase we're looking for
+          if (normalizeSearchableString(subAhead) === normalizedSearchablePhraseText) {
+              actualStartIndex = potentialStartIndex;
+              break; // Found a match
+          }
+          searchFromIndex = potentialStartIndex + 1; // Continue search from next position
       }
+
+
+      if (actualStartIndex !== -1) {
+        if (bestMatch === null || actualStartIndex < bestMatch.actualStartIndex) {
+          bestMatch = {
+            actualStartIndex,
+            phraseInfo,
+            // Crucially, use the substring from the *original* remainingText
+            originalTextToHighlight: remainingText.substring(actualStartIndex, actualStartIndex + phraseInfo.text.length) 
+          };
+        }
+      }
+    }
+
+    if (bestMatch) {
+      const before = remainingText.substring(0, bestMatch.actualStartIndex);
+      if (before) parts.push(before);
+
+      parts.push(
+        <span
+          key={`highlight-${normalizeSearchableString(bestMatch.phraseInfo.text)}-${keyCounter++}`}
+          style={{
+            backgroundColor: getHighlightColor(bestMatch.phraseInfo.score, bestMatch.phraseInfo.isWorried),
+            opacity: bestMatch.phraseInfo.opacity, // Apply opacity here
+            padding: '0.1em 0.2em', // Minimal padding for better text flow with opacity
+            borderRadius: '0.3em',
+            // Transition for smooth opacity changes if phrases re-render often with different opacities
+            // transition: 'opacity 0.3s ease-in-out', // Optional: for smoother visual updates
+          }}
+          title={`Category: ${bestMatch.phraseInfo.categoryKey}\nScore: ${bestMatch.phraseInfo.score}\nOpacity: ${bestMatch.phraseInfo.opacity.toFixed(2)}`}
+        >
+          {bestMatch.originalTextToHighlight}
+        </span>
+      );
+      remainingText = remainingText.substring(bestMatch.actualStartIndex + bestMatch.originalTextToHighlight.length);
+      foundThisIteration = true;
     }
 
     if (!foundThisIteration) {
@@ -81,10 +128,9 @@ export const highlightText = (text: string, phrasesToHighlight: PhraseToHighligh
       break;
     }
   }
-
-  if (parts.length === 0 && text) {
+  
+  if (parts.length === 0 && text) { // Should only happen if text exists but no phrases or all phrases have 0 opacity
     return [text];
   }
-
   return parts;
 };

@@ -226,6 +226,12 @@
   color: #007bff; /* Highlight color on hover */
 }
 
+.document-list li.active-doc-item {
+  background-color: #007bff;
+  color: #ffffff;
+  font-weight: 600; /* Or use the bold property already in use */
+}
+
 .document-list li[style*="bold"] { /* Targeting your active item style */
   background-color: #007bff; /* Primary color for selected */
   color: #ffffff;
