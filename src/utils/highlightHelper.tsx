@@ -9,10 +9,20 @@ export const worriedColors: { [key: number]: string } = {
   5: "#e03131", 4: "#fa5252", 3: "#ff8787", 2: "#ffc9c9", 1: "#fff5f5",
 };
 
+const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
+  const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+  hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : null;
+};
+
 export function getHighlightColor(score: number, isWorried: boolean): string {
-  // Ensure score is treated as absolute for color intensity, and clamped.
-  // Original score could be e.g. -5 to 5. abs() makes it 0 to 5.
-  // Math.round() + Math.max(1, ..) ensures it's an integer from 1 to 5.
   const absScore = Math.max(1, Math.min(5, Math.round(Math.abs(score)))); 
   if (isWorried) {
     return worriedColors[absScore] || worriedColors[1];
@@ -26,6 +36,7 @@ export const highlightText = (text: string, phrasesToHighlight: PhraseToHighligh
   }
 
   const normalizeSearchableString = (str: string): string => {
+    // ... (normalization logic remains the same)
     return str
       .toLowerCase()
       .replace(/\u00A0/g, ' ')
@@ -39,9 +50,6 @@ export const highlightText = (text: string, phrasesToHighlight: PhraseToHighligh
   let remainingText = text;
   const parts: (string | React.JSX.Element)[] = [];
   let keyCounter = 0;
-  // Sort by length descending to match longer phrases first, if that's desired,
-  // though current logic finds the *earliest* best match.
-  // Sorting might not be strictly necessary with the current "bestMatch" logic that prioritizes earlier start index.
   const sortedPhrases = [...phrasesToHighlight]; 
 
   while (remainingText.length > 0) {
@@ -54,69 +62,83 @@ export const highlightText = (text: string, phrasesToHighlight: PhraseToHighligh
 
     for (let i = 0; i < sortedPhrases.length; i++) {
       const phraseInfo = sortedPhrases[i];
-      // Skip if opacity is effectively zero (already filtered in DocumentViewer, but as a safeguard)
-      if (phraseInfo.opacity < 0.01) continue;
-
-
       const normalizedSearchablePhraseText = normalizeSearchableString(phraseInfo.text);
       if (normalizedSearchablePhraseText.length === 0) continue;
 
       let actualStartIndex = -1;
-      const originalPhraseLength = phraseInfo.text.length; // Use original phrase length
-
-      // Find the phrase in the remainingText using a case-insensitive search for the first character,
-      // then comparing the normalized substring.
-      // This is a revised loop to find the true start of the non-normalized phrase
-      // by normalizing substrings of remainingText for comparison.
+      const originalPhraseLength = phraseInfo.text.length;
       let searchFromIndex = 0;
       while(searchFromIndex < remainingText.length) {
-          // Attempt to find the start of the phrase (case-insensitive for the first char of phraseInfo.text for robustness)
           const potentialStartIndex = remainingText.toLowerCase().indexOf(phraseInfo.text.charAt(0).toLowerCase(), searchFromIndex);
-          
-          if (potentialStartIndex === -1) break; // First char not found, phrase cannot be in remainingText
-
-          // Extract a substring of original remainingText that has the same length as the original phrase.text
+          if (potentialStartIndex === -1) break;
           const subAhead = remainingText.substring(potentialStartIndex, potentialStartIndex + originalPhraseLength);
-          
-          // Normalize this extracted substring and compare with the normalized phrase we're looking for
           if (normalizeSearchableString(subAhead) === normalizedSearchablePhraseText) {
               actualStartIndex = potentialStartIndex;
-              break; // Found a match
+              break;
           }
-          searchFromIndex = potentialStartIndex + 1; // Continue search from next position
+          searchFromIndex = potentialStartIndex + 1;
       }
-
 
       if (actualStartIndex !== -1) {
         if (bestMatch === null || actualStartIndex < bestMatch.actualStartIndex) {
           bestMatch = {
             actualStartIndex,
             phraseInfo,
-            // Crucially, use the substring from the *original* remainingText
             originalTextToHighlight: remainingText.substring(actualStartIndex, actualStartIndex + phraseInfo.text.length) 
           };
         }
       }
     }
 
+
     if (bestMatch) {
       const before = remainingText.substring(0, bestMatch.actualStartIndex);
       if (before) parts.push(before);
+
+      const baseHexColor = getHighlightColor(bestMatch.phraseInfo.score, bestMatch.phraseInfo.isWorried);
+      const rgbColor = hexToRgb(baseHexColor);
+      const effectiveOpacity = (typeof bestMatch.phraseInfo.opacity === 'number') 
+                               ? Math.max(0, Math.min(1, bestMatch.phraseInfo.opacity)) 
+                               : 1;
+      let finalBackgroundColor = baseHexColor;
+      if (rgbColor) {
+        finalBackgroundColor = `rgba(${rgbColor.r}, ${rgbColor.g}, ${rgbColor.b}, ${effectiveOpacity})`;
+      }
+
+      // Prepare the score display
+      // We use Math.abs because color/isWorried already indicates sentiment direction.
+      // .toFixed(1) ensures one decimal place, e.g., 3.0, 4.5.
+      const scoreDisplay = Math.abs(bestMatch.phraseInfo.score).toFixed(1);
 
       parts.push(
         <span
           key={`highlight-${normalizeSearchableString(bestMatch.phraseInfo.text)}-${keyCounter++}`}
           style={{
-            backgroundColor: getHighlightColor(bestMatch.phraseInfo.score, bestMatch.phraseInfo.isWorried),
-            opacity: bestMatch.phraseInfo.opacity, // Apply opacity here
-            padding: '0.1em 0.2em', // Minimal padding for better text flow with opacity
+            backgroundColor: finalBackgroundColor,
+            color: '#212529', 
+            padding: '0.1em 0.2em', // Padding for the main text
             borderRadius: '0.3em',
-            // Transition for smooth opacity changes if phrases re-render often with different opacities
-            // transition: 'opacity 0.3s ease-in-out', // Optional: for smoother visual updates
           }}
-          title={`Category: ${bestMatch.phraseInfo.categoryKey}\nScore: ${bestMatch.phraseInfo.score}\nOpacity: ${bestMatch.phraseInfo.opacity.toFixed(2)}`}
+          title={`Category: ${bestMatch.phraseInfo.categoryKey}\nScore: ${bestMatch.phraseInfo.score}\nBG Opacity: ${effectiveOpacity.toFixed(2)}`}
         >
           {bestMatch.originalTextToHighlight}
+          <sup style={{
+            fontSize: '75%',          // Make it smaller than the parent text
+            fontWeight: '600',        // A bit bold to make the number clear
+            color: 'inherit',         // Inherit the text color of the parent span (#212529)
+            marginLeft: '3px',        // A little space after the phrase
+            padding: '0px 2px',       // Tiny padding around the number itself
+            borderRadius: '2px',      // Slightly rounded corners for the number's optional background
+            // backgroundColor: 'rgba(0, 0, 0, 0.05)', // Optional: very subtle background for the number if needed
+            userSelect: 'none',       // Prevent selecting just the score
+            // --- Precise positioning for superscript ---
+            position: 'relative',     // Needed for 'top' positioning
+            verticalAlign: 'baseline',// Reset default superscript vertical alignment
+            lineHeight: '0',          // Prevents sup from affecting main line height
+            top: '-0.5em',            // Adjust to raise it like a superscript
+          }}>
+            {scoreDisplay}
+          </sup>
         </span>
       );
       remainingText = remainingText.substring(bestMatch.actualStartIndex + bestMatch.originalTextToHighlight.length);
@@ -129,7 +151,7 @@ export const highlightText = (text: string, phrasesToHighlight: PhraseToHighligh
     }
   }
   
-  if (parts.length === 0 && text) { // Should only happen if text exists but no phrases or all phrases have 0 opacity
+  if (parts.length === 0 && text) {
     return [text];
   }
   return parts;
