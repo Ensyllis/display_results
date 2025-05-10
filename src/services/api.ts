@@ -1,7 +1,7 @@
 // src/services/api.ts
 import { DocumentData, DocumentListItem, Note } from '../types'; //
 
-const API_BASE_URL = 'http://192.34.61.136:3001/api'; // Your backend URL
+const API_BASE_URL = 'https://crazyknightage.com/api'; // Your backend URL
 
 // Define a type for the document list items (ID and title)
 
