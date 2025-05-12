@@ -220,10 +220,10 @@ const DocumentViewer: React.FC = () => {
   return (
     <div className={`document-viewer-layout ${isSidebarOpen ? 'sidebar-open' : 'sidebar-collapsed'}`}>
       <div className="sidebar">
+        <button onClick={toggleSidebar} className="sidebar-toggle-button" title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}>
+           {isSidebarOpen ? "\u2190" : "\u2192"}
+        </button>
         <div className="sidebar-content">
-          <button onClick={toggleSidebar} className="sidebar-toggle-button" title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}>
-            {isSidebarOpen ? "\u2190" : "\u2192"}
-          </button>
           {selectedDocument && selectedDocument.scores && (
             <div className="sticky-vector-plot-container">
               <h4>Scores Vector Plot</h4>
